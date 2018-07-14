@@ -7,7 +7,7 @@ import java.nio.file.Paths;
 
 import org.junit.Test;
 
-public class ClassPath {
+public class ClassPathTest {
 	@Test
 	public void test() {
 		System.out.println(this.getClass().getCanonicalName());

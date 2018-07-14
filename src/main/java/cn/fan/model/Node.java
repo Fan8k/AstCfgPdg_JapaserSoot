@@ -10,8 +10,10 @@ import java.util.List;
  */
 public class Node {
 	private String value;
-	private List<Node> preds; //前置节点集合
-	private List<Node> succs; //后置节点集合
+	/**前置节点集合*/
+	private List<Node> preds;
+	/**后置节点集合*/
+	private List<Node> succs;
 
 	//构造函数公共模块抽取出来
 	{
@@ -27,25 +29,25 @@ public class Node {
 		this.value = value;
 	}
 
-	//加入一个前置节点 这个设计的目的就是可以连续 add.add
+	/**加入一个前置节点 这个设计的目的就是可以连续 add.add*/
 	public List<Node> addPred(Node node) {
 		preds.add(node);
 		return preds;
 	}
 
-	//加入一个后置节点 这个设计的目的就是可以连续 add.add
+	/**加入一个后置节点 这个设计的目的就是可以连续 add.add*/
 	public List<Node> addSucc(Node node) {
 		succs.add(node);
 		return succs;
 	}
 
-	//删除一个前置节点 这个设计的目的就是可以连续 add.add
+	/**删除一个前置节点 这个设计的目的就是可以连续 add.add*/
 	public List<Node> removePred(Node node) {
 		preds.remove(node);
 		return preds;
 	}
 
-	//删除一个后置节点 这个设计的目的就是可以连续 add.add
+	/**删除一个后置节点 这个设计的目的就是可以连续 add.add*/
 	public List<Node> removeSucc(Node node) {
 		succs.remove(node);
 		return succs;

@@ -5,32 +5,19 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import cn.fan.model.SourceSubPathEnum;
+
 /**
  * 加载java源代码，返回具体的位置
  * 
  * @author fan
  *
  */
-public class LoadSourceCode implements LoadResourceI {
-	private Path projectPath;
+public class LoadSourceCode {
 
-	/**
-	 * 
-	 * @param subpath such as:  src/test/java/SourceCode
-	 */
-	public LoadSourceCode(String subpath) {
-		try {
-			projectPath = Paths.get(this.getClass().getProtectionDomain().getCodeSource().getLocation().toURI())
-								.resolve(".." + File.separator + "..").normalize().resolve(File.separator + subpath);
-		} catch (URISyntaxException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
-	@Override
-	public Path load(String filename) {
-		return projectPath.resolve(filename);
+	public static Path load(SourceSubPathEnum subpath, String filename) throws URISyntaxException {
+		return Paths.get(LoadSourceCode.class.getProtectionDomain().getCodeSource().getLocation().toURI()).resolve(".." + File.separator + "..")
+							.normalize().resolve(File.separator + subpath.path).resolve(filename);
 	}
 
 }
