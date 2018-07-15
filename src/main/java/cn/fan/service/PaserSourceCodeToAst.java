@@ -2,15 +2,16 @@ package cn.fan.service;
 
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.log4j.Logger;
 
+import cn.fan.ast.visitor.MethodVisitor;
 import cn.fan.model.SourceSubPathEnum;
 import cn.fan.tool.LoadSourceCode;
 
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.utils.SourceRoot;
 
 /**
@@ -43,12 +44,13 @@ public class PaserSourceCodeToAst {
 	}
 
 	/**
-	 * 根据方法的名字解析某一个方法 获取方法体中所有的statement
+	 * 根据方法的名字解析某一个方法 获取方法的开始到结束的行号
 	 * @param methodName 方法的名字
 	 */
-	public List<Statement> getAllStatementsFromOneMethod(String methodName) {
-
-		return null;
+	public List<Integer> getLinesFromOneMethod(String methodName) {
+		List<Integer> results = new ArrayList<Integer>();
+		MethodVisitor methodVisitor = new MethodVisitor(methodName);
+		methodVisitor.visit(compilationUnit, results);
+		return results;
 	}
-
 }

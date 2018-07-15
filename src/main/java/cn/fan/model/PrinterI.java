@@ -14,5 +14,5 @@ public interface PrinterI {
 	 * @param node
 	 *            需要输出的数据流
 	 */
-	void print(Node node);
+	void print(String methodName);
 }

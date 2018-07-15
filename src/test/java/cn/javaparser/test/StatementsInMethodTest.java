@@ -1,11 +1,6 @@
 package cn.javaparser.test;
 
-import java.util.List;
-
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.utils.CodeGenerationUtils;
 import com.github.javaparser.utils.SourceRoot;
 
@@ -20,18 +15,11 @@ public class StatementsInMethodTest {
 		SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(StatementsInMethodTest.class).resolve(
 							"src/test/resource/SourceCode"));
 		CompilationUnit cu = sourceRoot.parse("", "AST_1.java");
-		List<Node> childNodes = cu.getChildNodes();
-		for (Node node : childNodes) {
-			if (node instanceof ClassOrInterfaceDeclaration) {
-				List<Node> childNodes2 = node.getChildNodes();
-				for (Node node2 : childNodes2) {
-					if (node2 instanceof SimpleName) {
-						SimpleName simpleName = (SimpleName) node2;
-						System.out.println(simpleName.getId());
-					}
-				}
-			}
-		}
+
+		MethodVisitor methodVisitor = new MethodVisitor();
+
+		methodVisitor.visit(cu, null);
 	}
 
+	//使用javaParser 自带的Visitor遍历树，而非自己for循环 还要判断数据类型
 }

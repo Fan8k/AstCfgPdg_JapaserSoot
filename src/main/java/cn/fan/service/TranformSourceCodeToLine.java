@@ -40,14 +40,14 @@ public class TranformSourceCodeToLine {
 	 * 为代码分配 linenum的核心 
 	 * @return hashmap<>{"int a=10 #备注信息":2,"public construct(){":3}
 	 */
-	public HashMap<String, Integer> transform() {
-		HashMap<String, Integer> result = new HashMap<String, Integer>(16);
+	public HashMap<Integer, String> transform() {
+		HashMap<Integer, String> result = new HashMap<Integer, String>(16);
 		File file = new File(path.toString());
 		int lineNums = 1;
 		if (file.exists()) {
 			try (BufferedReader fileReader = new BufferedReader(new FileReader(file))) {
 				//加入 代码 和 行号
-				result.put(fileReader.readLine().trim(), lineNums++);
+				result.put(lineNums++, fileReader.readLine().trim());
 			} catch (FileNotFoundException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

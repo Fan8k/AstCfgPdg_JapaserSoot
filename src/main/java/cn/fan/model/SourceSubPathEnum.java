@@ -10,7 +10,7 @@ public enum SourceSubPathEnum {
 	 * SOURCE_CODE_PATH 描述了java源代码存放的路径
 	 * JAR_SOURCE_PATH 描述了jar包存放的路径
 	 */
-	SOURCE_CODE_PATH("src/main/resource/SourceCode/"), JAR_SOURCE_PATH("src/main/resource/JarSource/");
+	SOURCE_CODE_PATH("src/main/resource/SourceCode/"), JAR_SOURCE_PATH("src/main/resource/JarSource/"), Dot_FILE_PATH("src/main/resource/DotFile/");
 	public String path;
 
 	private SourceSubPathEnum(String path) {
