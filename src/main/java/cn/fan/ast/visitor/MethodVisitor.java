@@ -18,7 +18,7 @@ public class MethodVisitor extends VoidVisitorAdapter<List<Integer>> {
 		// TODO Auto-generated method stub
 		super.visit(n, arg);
 		//获取method的首行和结束行 
-		if (n.getName().equals(methodName)) {
+		if (n.getNameAsString().equals(methodName)) {
 			arg.add(n.getBegin().get().line + 1);
 			arg.add(n.getEnd().get().line - 1);
 		}

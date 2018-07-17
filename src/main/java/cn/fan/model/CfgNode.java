@@ -8,20 +8,20 @@ import java.util.List;
  * @author fan
  *
  */
-public class Node<T> {
+public class CfgNode<T> {
 	private String value;
 	/**前置节点集合*/
 	private List<T> preds;
 	/**后置节点集合*/
 	private List<T> succs;
 
-	public Node() {
+	public CfgNode() {
 		this.value = "";
 		this.preds = new ArrayList<T>();
 		this.succs = new ArrayList<T>();
 	}
 
-	public Node(String value, List<T> preds, List<T> succs) {
+	public CfgNode(String value, List<T> preds, List<T> succs) {
 		this.value = value;
 		this.preds = preds;
 		this.succs = succs;

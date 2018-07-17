@@ -17,7 +17,6 @@ public class LoadSourceCode {
 
 	public static Path load(SourceSubPathEnum subpath, String filename) throws URISyntaxException {
 		return Paths.get(LoadSourceCode.class.getProtectionDomain().getCodeSource().getLocation().toURI()).resolve(".." + File.separator + "..")
-							.normalize().resolve(File.separator + subpath.path).resolve(filename);
+							.normalize().resolve(subpath.path).resolve(filename);
 	}
-
 }

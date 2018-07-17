@@ -14,7 +14,7 @@ public class StatementsInMethodTest {
 	public static void main(String[] args) {
 		SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(StatementsInMethodTest.class).resolve(
 							"src/test/resource/SourceCode"));
-		CompilationUnit cu = sourceRoot.parse("", "AST_1.java");
+		CompilationUnit cu = sourceRoot.parse("", "Test.java");
 
 		MethodVisitor methodVisitor = new MethodVisitor();
 

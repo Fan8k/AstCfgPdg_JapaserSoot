@@ -1,10 +1,11 @@
-package cn.fan.model;
+package cn.fan.fore;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
@@ -12,6 +13,10 @@ import java.util.Random;
 
 import org.apache.log4j.Logger;
 
+import cn.fan.model.Edge;
+import cn.fan.model.CfgNode;
+import cn.fan.model.PrinterI;
+import cn.fan.model.SourceSubPathEnum;
 import cn.fan.service.PaserSourceCodeToAst;
 import cn.fan.service.TranformSourceCodeToLine;
 import cn.fan.tool.LoadSourceCode;
@@ -21,15 +26,15 @@ import cn.fan.tool.LoadSourceCode;
  * @author fan
  *
  */
-public class DotPrinter implements PrinterI {
+public class DotPrinterCfg implements PrinterI {
 
 	private TranformSourceCodeToLine tranformSourceCodeToLine;
 	private PaserSourceCodeToAst paserSourceCodeToAst;
-	private HashMap<Integer, Node<String>> allEdges;
-	private Logger logger = Logger.getLogger(DotPrinter.class);
+	private HashMap<Integer, CfgNode<String>> allEdges;
+	private Logger logger = Logger.getLogger(DotPrinterCfg.class);
 
-	public DotPrinter(TranformSourceCodeToLine tranformSourceCodeToLine, PaserSourceCodeToAst paserSourceCodeToAst,
-						HashMap<Integer, Node<String>> allEdges) {
+	public DotPrinterCfg(TranformSourceCodeToLine tranformSourceCodeToLine, PaserSourceCodeToAst paserSourceCodeToAst,
+						HashMap<Integer, CfgNode<String>> allEdges) {
 		// TODO Auto-generated constructor stub
 		this.tranformSourceCodeToLine = tranformSourceCodeToLine;
 		this.paserSourceCodeToAst = paserSourceCodeToAst;
@@ -55,19 +60,36 @@ public class DotPrinter implements PrinterI {
 
 	private String productContents(String methodName, HashMap<Integer, String> transform, List<Integer> linesFromOneMethod) {
 		StringBuilder contents = new StringBuilder("digraph \"" + methodName + "\" {");
-		contents.append("node [shape=box];");
+		contents.append("node [shape=box];\n");
+		List<Edge> readyEdges = new ArrayList<Edge>();
 		for (int i = linesFromOneMethod.get(0); i <= linesFromOneMethod.get(1); i++) {
-			contents.append("\"" + i + "\" [ label=\"" + transform.get(i) + "\"];");
+			contents.append("\"" + i + "\" [ label=\"" + transform.get(i).trim() + "\"];\n");
 		}
-		for (Entry<Integer, Node<String>> entry : allEdges.entrySet()) {
+		for (Entry<Integer, CfgNode<String>> entry : allEdges.entrySet()) {
 			//所有前驱节点
 			for (String preds : entry.getValue().getPreds()) {
-				contents.append("\"" + preds + "\"->\"" + entry.getKey() + "\";");
+				contents.append("\"" + preds + "\"->\"" + entry.getKey() + "\";\n");
+				readyEdges.add(new Edge(preds, entry.getKey() + ""));
 			}
 			//所有后继节点
 			for (String succs : entry.getValue().getPreds()) {
-				contents.append("\"" + entry.getKey() + "\"->\"" + succs + "\";");
+				contents.append("\"" + entry.getKey() + "\"->\"" + succs + "\";\n");
+				readyEdges.add(new Edge(entry.getKey() + "", succs));
 			}
+		}
+		for (int i = linesFromOneMethod.get(0); i < linesFromOneMethod.get(1); i++) {
+			Edge eg = new Edge(String.valueOf(i), String.valueOf(i + 1));
+			boolean flag = false; //不存在一条边
+			for (Edge edge : readyEdges) {
+				if (edge.equals(eg)) {
+					flag = true;
+					break;
+				}
+			}
+			if (!flag) {
+				contents.append("\"" + i + "\"->\"" + (i + 1) + "\";\n");
+			}
+
 		}
 		contents.append("}");
 		return contents.toString();

@@ -47,7 +47,15 @@ public class TranformSourceCodeToLine {
 		if (file.exists()) {
 			try (BufferedReader fileReader = new BufferedReader(new FileReader(file))) {
 				//加入 代码 和 行号
-				result.put(lineNums++, fileReader.readLine().trim());
+				while (true) {
+					String line = fileReader.readLine();
+					if (line == null) {
+						break;
+					} else {
+						result.put(lineNums++, line);
+					}
+
+				}
 			} catch (FileNotFoundException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
