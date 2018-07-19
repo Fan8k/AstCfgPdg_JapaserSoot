@@ -2,10 +2,12 @@ package cn.fan.cfg.assistant;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import soot.Body;
 import soot.BodyTransformer;
@@ -13,8 +15,11 @@ import soot.PatchingChain;
 import soot.Unit;
 import soot.tagkit.LineNumberTag;
 import soot.toolkits.graph.BriefUnitGraph;
+import soot.toolkits.scalar.FlowSet;
 import soot.util.cfgcmd.CFGGraphType;
 import cn.fan.model.CfgNode;
+import cn.fan.model.DataFlowNode;
+import cn.fan.model.Edge;
 import cn.fan.model.UnitToDataSet;
 
 /**
@@ -31,6 +36,11 @@ public class MethodTransformer extends BodyTransformer {
      */
     private HashMap<Integer, List<Unit>> allUnitsOfLine;
     private HashMap<Integer, CfgNode<String>> allEdges;
+
+    /*
+     * 记录所有的数据流的边
+     */
+    private Set<Edge> allDataFlowEdges;
     /**
      * 存储 {unit:行号}
      */
@@ -44,23 +54,49 @@ public class MethodTransformer extends BodyTransformer {
         this.allUnitsOfLine = new HashMap<Integer, List<Unit>>(16);
         unitToLineMap = new HashMap<Unit, Integer>(16);
         allEdges = new HashMap<Integer, CfgNode<String>>(16);
+        allDataFlowEdges = new HashSet<Edge>(16);
     }
 
     @Override
     protected void internalTransform(Body b, String phaseName, Map<String, String> options) {
         // TODO Auto-generated method stub
         if (b.getMethod().getName().toString().equals(methodName)) {
-            System.out.println(b);
-            // 只转换目标方法
-            BriefUnitGraph directGraph = (BriefUnitGraph) cfgType.buildGraph(b);
-            DataFlowAnalysisDefined dataFlowAnalysis = new DataFlowAnalysisDefined(directGraph);
-            Iterator<Unit> iterator = directGraph.iterator();
-            while (iterator.hasNext()) {
-                Unit next = iterator.next();
-                UnitToDataSet unitToDataSet = dataFlowAnalysis.getUnitToDataSet().get(next);
-                System.out.println(unitToDataSet);
+            allDataFlowEdges = getDataFlowEdge(b);
+        }
+    }
+
+    /**
+     * 
+     * @Title: getDataFlowEdge
+     * @Description: TODO 根据cfg图进行数据流分析 获取数据流的边
+     * @author LiRongFan
+     * @param b方法体的jimple表达
+     * @return 不重复而且头尾都是不同的行号的边
+     * @throws
+     */
+    public Set<Edge> getDataFlowEdge(Body b) {
+        Set<Edge> dataFlowEdges = new HashSet<Edge>();
+        BriefUnitGraph directGraph = (BriefUnitGraph) cfgType.buildGraph(b);
+        DataFlowAnalysisDefined dataFlowAnalysis = new DataFlowAnalysisDefined(directGraph);
+        HashMap<Unit, UnitToDataSet> unitToDataSet = dataFlowAnalysis.getUnitToDataSet();
+        Iterator<Unit> iterator = directGraph.iterator();
+        while (iterator.hasNext()) {
+            Unit next = iterator.next();
+            UnitToDataSet edgeInfo = unitToDataSet.get(next);
+            // 后继节点
+            String succ = edgeInfo.getUnitLine();
+            // 前驱节点
+            if (!succ.equals("NAN")) {// 首先后继节点有行号
+                FlowSet<DataFlowNode> inFlowSet = edgeInfo.getInFlowSet();
+                for (DataFlowNode node : inFlowSet) {
+                    // 同一行不处理而且没有行号的也不是边
+                    if (!node.getLineNum().equals(succ) && !node.getLineNum().equals("NAN")) {
+                        dataFlowEdges.add(new Edge(node.getLineNum(), succ));
+                    }
+                }
             }
         }
+        return dataFlowEdges;
     }
 
     /**
@@ -72,26 +108,23 @@ public class MethodTransformer extends BodyTransformer {
      * @throws
      */
     private void initInfo(Body b) {
-        if (b.getMethod().getName().equals(methodName)) {
-            // System.out.println(b);
-            PatchingChain<Unit> units = b.getUnits();
-            for (Unit unit : units) {
-                LineNumberTag tag = (LineNumberTag) unit.getTag("LineNumberTag");
-                if (tag != null) {
-                    int lineNumber = tag.getLineNumber();
-                    unitToLineMap.put(unit, lineNumber);
-                    if (allUnitsOfLine.get(lineNumber) == null || allUnitsOfLine.get(lineNumber).size() == 0) {
-                        List<Unit> listUnit = new ArrayList<Unit>();
-                        listUnit.add(unit);
-                        allUnitsOfLine.put(lineNumber, listUnit);
-                    }
-                    else {
-                        allUnitsOfLine.get(lineNumber).add(unit);
-                    }
+        PatchingChain<Unit> units = b.getUnits();
+        for (Unit unit : units) {
+            LineNumberTag tag = (LineNumberTag) unit.getTag("LineNumberTag");
+            if (tag != null) {
+                int lineNumber = tag.getLineNumber();
+                unitToLineMap.put(unit, lineNumber);
+                if (allUnitsOfLine.get(lineNumber) == null || allUnitsOfLine.get(lineNumber).size() == 0) {
+                    List<Unit> listUnit = new ArrayList<Unit>();
+                    listUnit.add(unit);
+                    allUnitsOfLine.put(lineNumber, listUnit);
+                }
+                else {
+                    allUnitsOfLine.get(lineNumber).add(unit);
                 }
             }
-            extractEdgeFromJimple(b);
         }
+        extractEdgeFromJimple(b);
     }
 
     /**
