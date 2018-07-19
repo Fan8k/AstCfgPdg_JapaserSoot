@@ -1,13 +1,8 @@
 package cn.fan.service;
 
-import java.net.URISyntaxException;
-
 import soot.PackManager;
 import soot.Transform;
 import soot.Transformer;
-import cn.fan.cfg.assistant.MethodTransformer;
-import cn.fan.model.SourceSubPathEnum;
-import cn.fan.tool.LoadSourceCode;
 
 /**
  * 解析class 文件成为 cfg
@@ -16,6 +11,7 @@ import cn.fan.tool.LoadSourceCode;
  *
  */
 public class PaserClassToCfg<T extends Transformer> {
+
     public void parseCfg(T transformer, String jarPath, String parseredClass) {
         // Options.v().keep_line_number();
         // 加入自定义阶段
@@ -37,14 +33,6 @@ public class PaserClassToCfg<T extends Transformer> {
     }
 
     public static void main(String[] args) {
-        MethodTransformer methodTransformer = new MethodTransformer("way");
-        PaserClassToCfg<MethodTransformer> paserClassToCfg = new PaserClassToCfg<MethodTransformer>();
-        try {
-            paserClassToCfg.parseCfg(methodTransformer, LoadSourceCode.load(SourceSubPathEnum.JAR_SOURCE_PATH, "Analyze.jar").toString(), "cn.li.easy.AST_1");
-        }
-        catch (URISyntaxException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+
     }
 }

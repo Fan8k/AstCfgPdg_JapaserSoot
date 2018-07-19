@@ -1,23 +1,18 @@
 package cn.fan.cfg.assistant;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import soot.Body;
 import soot.BodyTransformer;
-import soot.PatchingChain;
 import soot.Unit;
 import soot.tagkit.LineNumberTag;
 import soot.toolkits.graph.BriefUnitGraph;
 import soot.toolkits.scalar.FlowSet;
-import soot.util.cfgcmd.CFGGraphType;
-import cn.fan.model.CfgNode;
 import cn.fan.model.DataFlowNode;
 import cn.fan.model.Edge;
 import cn.fan.model.UnitToDataSet;
@@ -30,38 +25,33 @@ import cn.fan.model.UnitToDataSet;
  */
 public class MethodTransformer extends BodyTransformer {
 
-    private String methodName;
+    private List<String> methodNames;
     /**
-     * 一行所对应的所有jimple statement
+     * 所有的cfg边 {方法中：cfg边}
      */
-    private HashMap<Integer, List<Unit>> allUnitsOfLine;
-    private HashMap<Integer, CfgNode<String>> allEdges;
+    public HashMap<String, Set<Edge>> methodToCfgEdges;
 
     /*
-     * 记录所有的数据流的边
+     * 所有的DataFlow边 {方法中：dataflow边}
      */
-    private Set<Edge> allDataFlowEdges;
-    /**
-     * 存储 {unit:行号}
-     */
-    private HashMap<Unit, Integer> unitToLineMap;
+    public HashMap<String, Set<Edge>> methodToallDataFlowEdges;
 
-    private CFGGraphType cfgType = CFGGraphType.BRIEF_UNIT_GRAPH;
-
-    public MethodTransformer(String methodName) {
+    public MethodTransformer(List<String> methodNames) {
         // TODO Auto-generated constructor stub
-        this.methodName = methodName;
-        this.allUnitsOfLine = new HashMap<Integer, List<Unit>>(16);
-        unitToLineMap = new HashMap<Unit, Integer>(16);
-        allEdges = new HashMap<Integer, CfgNode<String>>(16);
-        allDataFlowEdges = new HashSet<Edge>(16);
+        this.methodNames = methodNames;
+        methodToCfgEdges = new HashMap<String, Set<Edge>>();
+        methodToallDataFlowEdges = new HashMap<String, Set<Edge>>();
     }
 
     @Override
     protected void internalTransform(Body b, String phaseName, Map<String, String> options) {
         // TODO Auto-generated method stub
-        if (b.getMethod().getName().toString().equals(methodName)) {
-            allDataFlowEdges = getDataFlowEdge(b);
+        for (String methodName : methodNames) {
+            if (b.getMethod().getName().toString().equals(methodName)) {
+                BriefUnitGraph directGraph = new BriefUnitGraph(b);
+                methodToCfgEdges.put(methodName, getCfgEdges(directGraph));
+                methodToallDataFlowEdges.put(methodName, getDataFlowEdges(directGraph));
+            }
         }
     }
 
@@ -74,9 +64,8 @@ public class MethodTransformer extends BodyTransformer {
      * @return 不重复而且头尾都是不同的行号的边
      * @throws
      */
-    public Set<Edge> getDataFlowEdge(Body b) {
+    private Set<Edge> getDataFlowEdges(BriefUnitGraph directGraph) {
         Set<Edge> dataFlowEdges = new HashSet<Edge>();
-        BriefUnitGraph directGraph = (BriefUnitGraph) cfgType.buildGraph(b);
         DataFlowAnalysisDefined dataFlowAnalysis = new DataFlowAnalysisDefined(directGraph);
         HashMap<Unit, UnitToDataSet> unitToDataSet = dataFlowAnalysis.getUnitToDataSet();
         Iterator<Unit> iterator = directGraph.iterator();
@@ -107,75 +96,72 @@ public class MethodTransformer extends BodyTransformer {
      * @param b
      * @throws
      */
-    private void initInfo(Body b) {
-        PatchingChain<Unit> units = b.getUnits();
-        for (Unit unit : units) {
-            LineNumberTag tag = (LineNumberTag) unit.getTag("LineNumberTag");
-            if (tag != null) {
-                int lineNumber = tag.getLineNumber();
-                unitToLineMap.put(unit, lineNumber);
-                if (allUnitsOfLine.get(lineNumber) == null || allUnitsOfLine.get(lineNumber).size() == 0) {
-                    List<Unit> listUnit = new ArrayList<Unit>();
-                    listUnit.add(unit);
-                    allUnitsOfLine.put(lineNumber, listUnit);
-                }
-                else {
-                    allUnitsOfLine.get(lineNumber).add(unit);
+    private Set<Edge> getCfgEdges(BriefUnitGraph directGraph) {
+        HashMap<Unit, String> unitToLineMap = new HashMap<Unit, String>(16);
+        Set<Edge> cfgEdges = new HashSet<Edge>();
+        Iterator<Unit> iterator = directGraph.iterator();
+        while (iterator.hasNext()) {
+            Unit unit = iterator.next();
+            unitToLineMap.put(unit, canAddLineNum(unit));
+        }
+        for (Iterator<Unit> nodesIt = directGraph.iterator(); nodesIt.hasNext();) {
+            Unit currentUnit = nodesIt.next();
+            // 前驱节点有行号才有意义
+            String predLine = unitToLineMap.get(currentUnit);
+            if (!predLine.equals("NAN")) {
+                for (Iterator<Unit> succes = directGraph.getSuccsOf(currentUnit).iterator(); succes.hasNext();) {
+                    // 后继节点
+                    Unit succ = succes.next();
+                    String succLine = unitToLineMap.get(succ);
+                    if (!succLine.equals("NAN") && !succLine.equals(predLine)) {
+                        cfgEdges.add(new Edge(predLine, succLine));
+                    }
                 }
             }
         }
-        extractEdgeFromJimple(b);
+        return cfgEdges;
     }
 
     /**
-     * 从body形成的cfg中抽取边
      * 
-     * @param body
+     * @Title: canAddLineNum
+     * @Description: 用于判断该unit是否有行号
+     * @author LiRongFan
+     * @param unit
+     * @return 布尔值
+     * @throws
      */
-    private void extractEdgeFromJimple(Body body) {
-        // BriefUnitGraph
-        BriefUnitGraph directGraph = (BriefUnitGraph) cfgType.buildGraph(body);
-        // 把相同行的前驱和后继节点合并一起
-        for (Entry<Integer, List<Unit>> entry : allUnitsOfLine.entrySet()) {
-            // 获取某一行号所有的list
-            List<Unit> values = entry.getValue();
-            List<CfgNode<Unit>> Nodes = new ArrayList<CfgNode<Unit>>();
-            for (Unit unit : values) {
-                // 一个unit对应的所有前驱和后继节点
-                // 先清洗一遍前驱和后继 保证前驱和后继都是来自外来行
-                List<Unit> predsOf = directGraph.getPredsOf(unit);
-                predsOf.removeAll(entry.getValue());
-                List<Unit> succsOf = directGraph.getSuccsOf(unit);
-                succsOf.remove(entry.getValue());
-                Nodes.add(new CfgNode<Unit>(entry.getKey() + "", predsOf, succsOf));
-            }
-            // 前驱节点的所有行号
-            List<String> predsLines = new ArrayList<String>();
-            List<String> succsLines = new ArrayList<String>();
-
-            // 从unit到行号的转变
-            for (CfgNode<Unit> node : Nodes) {
-
-                // 所有前驱
-                for (Unit unit : node.getPreds()) {
-                    predsLines.add(String.valueOf(unitToLineMap.get(unit)));
-                }
-                // 所有后继
-                for (Unit unit : node.getSuccs()) {
-                    succsLines.add(String.valueOf(unitToLineMap.get(unit)));
-                }
-            }
-            // {10:{11,12,13},{9,8,15}} 一行所对应的所有前驱和后继
-            allEdges.put(entry.getKey(), new CfgNode<String>(entry.getKey() + "", predsLines, succsLines));
+    private String canAddLineNum(Unit unit) {
+        String flag = "NAN";
+        LineNumberTag tagU = (LineNumberTag) unit.getTag("LineNumberTag");
+        if (tagU != null && tagU.getLineNumber() > 0) {
+            flag = String.valueOf(tagU.getLineNumber());
         }
+        return flag;
     }
 
-    /**
-     * 获取soot中所有的边
-     * 
-     * @return
-     */
-    public HashMap<Integer, CfgNode<String>> getAllEdges() {
-        return allEdges;
+    public List<String> getMethodNames() {
+        return methodNames;
     }
+
+    public void setMethodNames(List<String> methodNames) {
+        this.methodNames = methodNames;
+    }
+
+    public HashMap<String, Set<Edge>> getMethodToCfgEdges() {
+        return methodToCfgEdges;
+    }
+
+    public void setMethodToCfgEdges(HashMap<String, Set<Edge>> methodToCfgEdges) {
+        this.methodToCfgEdges = methodToCfgEdges;
+    }
+
+    public HashMap<String, Set<Edge>> getMethodToallDataFlowEdges() {
+        return methodToallDataFlowEdges;
+    }
+
+    public void setMethodToallDataFlowEdges(HashMap<String, Set<Edge>> methodToallDataFlowEdges) {
+        this.methodToallDataFlowEdges = methodToallDataFlowEdges;
+    }
+
 }

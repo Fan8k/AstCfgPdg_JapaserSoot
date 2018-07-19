@@ -1,23 +1,16 @@
 package cn.fan.cfg.assistant;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 
 import soot.Unit;
-import soot.Value;
 import soot.ValueBox;
 import soot.tagkit.LineNumberTag;
 import soot.toolkits.graph.DirectedGraph;
 import soot.toolkits.scalar.ArraySparseSet;
 import soot.toolkits.scalar.FlowSet;
 import soot.toolkits.scalar.ForwardFlowAnalysis;
+import cn.fan.model.DataFlowNode;
 import cn.fan.model.UnitToDataSet;
 
 /**
@@ -30,112 +23,107 @@ import cn.fan.model.UnitToDataSet;
  * @date 2018年7月18日 下午4:40:48
  *
  */
-public class DataFlowAnalysisDefined extends ForwardFlowAnalysis<Unit, FlowSet<String>> {
+public class DataFlowAnalysisDefined extends ForwardFlowAnalysis<Unit, FlowSet<DataFlowNode>> {
 
     private HashMap<Unit, UnitToDataSet> unitToDataSet;
 
-    private FlowSet<String> emptySet;
-
-    /**
-     * 用来记录所有定义变量的位置 包括改变变量的位置 list 就是记录所有定义过变量的位置 {a,{1,2,3}}
-     */
-    private HashMap<String, List<String>> variableToLines = new HashMap<String, List<String>>();
+    private FlowSet<DataFlowNode> emptySet;
 
     public DataFlowAnalysisDefined(DirectedGraph<Unit> graph) {
         super(graph);
-        emptySet = new ArraySparseSet<String>();
+        emptySet = new ArraySparseSet<DataFlowNode>();
         unitToDataSet = new HashMap<Unit, UnitToDataSet>(16);
         doAnalysis();
     }
 
     @Override
-    protected void flowThrough(FlowSet<String> in, Unit d, FlowSet<String> out) {
+    protected void flowThrough(FlowSet<DataFlowNode> in, Unit d, FlowSet<DataFlowNode> out) {
         // TODO Auto-generated method stub
         filter(in, d, out);
     }
 
-    private void filter(FlowSet<String> inSet, Unit u, FlowSet<String> outSet) {
+    private void filter(FlowSet<DataFlowNode> inSet, Unit u, FlowSet<DataFlowNode> outSet) {
         // TODO Auto-generated method stub
-        FlowSet<String> currentDefineVariableSet = emptySet.clone();// Unit的kills
-        FlowSet<String> middleSet = emptySet.clone();// Unit的kills
-        Iterator<ValueBox> useVariablesIterator = u.getUseBoxes().iterator(); // 所有使用的变量
-        FlowSet<String> inFlowSet = new ArraySparseSet<String>();
+        // 所有使用的变量,专门判断哪些变量当前unit使用过，说明有使用过的inset都是前驱
+        Iterator<ValueBox> useVariablesIterator = u.getUseBoxes().iterator();
+        FlowSet<DataFlowNode> inFlowSet = emptySet.clone();
         while (useVariablesIterator.hasNext()) {
-            ValueBox next = useVariablesIterator.next();
+            ValueBox usedVar = useVariablesIterator.next();
             // 看看使用的变量是否出现在之前的定义中
-            for (String value : inSet) {
-                if (value.equals(next.getValue().toString())) {
-                    inFlowSet.add(value);
+            for (DataFlowNode dataNode : inSet) {
+                if (dataNode.getVariableName().equals(usedVar.getValue().toString())) {
+                    inFlowSet.add(dataNode);
                 }
             }
         }
-        HashMap<String, List<String>> currentState = new HashMap<String, List<String>>();
-        for (String s : inFlowSet) {
-            if (variableToLines.get(s) != null) {
-                currentState.put(s, variableToLines.get(s));
-            }
-        }
         // 让一个unit记住当前的时刻
-        LineNumberTag tagU = (LineNumberTag) u.getTag("LineNumberTag");
-        if (tagU != null) {
-            unitToDataSet.put(u, new UnitToDataSet(tagU.getLineNumber() + "", inFlowSet, deepClone(currentState)));
-        }
-        // 当前定义的变量如果和之前定义的变量value一样就要被杀死
-        HashMap<String, Integer> currentDefinedVariableToLine = new HashMap<String, Integer>();
+        String lineNum = canAddLineNum(u);
+        unitToDataSet.put(u, new UnitToDataSet(lineNum, inFlowSet));
+        // 处理输出集 遇到定义就更新，更新的方法就是删除之前所有的名字相同的变量
+        FlowSet<DataFlowNode> currentDefineVariableSet = emptySet.clone();// Unit的kills
+        FlowSet<DataFlowNode> middleSet = emptySet.clone();
         Iterator<ValueBox> defIterator = u.getDefBoxes().iterator();
+        String lineNum1 = null;
         while (defIterator.hasNext()) {
-            Value value = defIterator.next().getValue();
-            currentDefineVariableSet.add(value.toString());
-            // 记录value的行号
-            LineNumberTag tag = (LineNumberTag) u.getTag("LineNumberTag");
-            if (tag != null) {
-                currentDefinedVariableToLine.put(value.toString(), tag.getLineNumber());
+            lineNum1 = canAddLineNum(u);
+            currentDefineVariableSet.add(new DataFlowNode(defIterator.next().getValue().toString(), lineNum1));
+        }
+        // 判断相交只能用变量名字，名相同就要更新
+        for (DataFlowNode inNode : inSet) {
+            for (DataFlowNode cNode : currentDefineVariableSet) {
+                if (inNode.getVariableName().equals(cNode.getVariableName())) {
+                    middleSet.add(inNode);
+                    break;
+                }
             }
         }
-        inSet.intersection(currentDefineVariableSet, middleSet);
-        if (middleSet.isEmpty()) { // 如果中间定义为空 那就是该unit 定义都是新的变量
+        if (middleSet.isEmpty()) { // 没有重复的
             inSet.union(currentDefineVariableSet, outSet);
-            for (java.util.Map.Entry<String, Integer> entry : currentDefinedVariableToLine.entrySet()) {
-                ArrayList<String> arrayList = new ArrayList<String>();
-                arrayList.add(String.valueOf(entry.getValue()));
-                variableToLines.put(entry.getKey(), arrayList);
-            }
         }
         else {
-            // 这一步可以不要
-            inSet.difference(middleSet); // 去掉以前定义的
-            inSet.union(currentDefineVariableSet, outSet); // 加入新定义的
-            // 记录下从新定义的变量的新位置
-            Iterator<String> iterator = middleSet.iterator();
-            while (iterator.hasNext()) {
-                String next = iterator.next().toString();
-                Integer integer = currentDefinedVariableToLine.get(next);
-                variableToLines.get(next).add(String.valueOf(integer));
-            }
+            inSet.difference(middleSet);
+            inSet.union(currentDefineVariableSet, outSet);
         }
+    }
 
+    /**
+     * 
+     * @Title: canAddLineNum
+     * @Description: 用于判断该unit是否有行号
+     * @author LiRongFan
+     * @param unit
+     * @return 布尔值
+     * @throws
+     */
+    private String canAddLineNum(Unit unit) {
+        String flag = "NAN";
+        LineNumberTag tagU = (LineNumberTag) unit.getTag("LineNumberTag");
+        if (tagU != null && tagU.getLineNumber() > 0) {
+            flag = String.valueOf(tagU.getLineNumber());
+        }
+        return flag;
     }
 
     @Override
-    protected FlowSet<String> newInitialFlow() {
+    protected FlowSet<DataFlowNode> newInitialFlow() {
         // TODO Auto-generated method stub
         return emptySet.emptySet();
     }
 
     @Override
-    protected FlowSet<String> entryInitialFlow() {
+    protected FlowSet<DataFlowNode> entryInitialFlow() {
         // TODO Auto-generated method stub
         return emptySet.emptySet();
     }
 
     @Override
-    protected void merge(FlowSet<String> in1, FlowSet<String> in2, FlowSet<String> out) {
+    protected void merge(FlowSet<DataFlowNode> in1, FlowSet<DataFlowNode> in2, FlowSet<DataFlowNode> out) {
         // TODO Auto-generated method stub
         in1.union(in2, out);
     }
 
     @Override
-    protected void copy(FlowSet<String> source, FlowSet<String> dest) {
+    protected void copy(FlowSet<DataFlowNode> source, FlowSet<DataFlowNode> dest) {
         // TODO Auto-generated method stub
         source.copy(dest);
     }
@@ -146,46 +134,5 @@ public class DataFlowAnalysisDefined extends ForwardFlowAnalysis<Unit, FlowSet<S
 
     public void setUnitToDataSet(HashMap<Unit, UnitToDataSet> unitToDataSet) {
         this.unitToDataSet = unitToDataSet;
-    }
-
-    /**
-     * 深度克隆 利用序列化 因为每一个unit需要记住当时输入节点的状态，而非全局状态
-     */
-    @SuppressWarnings("unchecked")
-    private HashMap<String, List<String>> deepClone(HashMap<String, List<String>> varToLines) {
-        HashMap<String, List<String>> result = null;
-        ByteArrayOutputStream bos = null;
-        ObjectOutputStream oos = null;
-        ByteArrayInputStream bis = null;
-        ObjectInputStream ois = null;
-        try {
-            bos = new ByteArrayOutputStream();
-            oos = new ObjectOutputStream(bos);
-            oos.writeObject(varToLines);
-            bis = new ByteArrayInputStream(bos.toByteArray());
-            ois = new ObjectInputStream(bis);
-            result = (HashMap<String, List<String>>) ois.readObject();
-        }
-        catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        catch (ClassNotFoundException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        finally {
-            try {
-                bos.close();
-                oos.close();
-                bis.close();
-                ois.close();
-            }
-            catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-        }
-        return result;
     }
 }
