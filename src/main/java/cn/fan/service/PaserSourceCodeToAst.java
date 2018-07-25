@@ -3,11 +3,14 @@ package cn.fan.service;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 
 import cn.fan.ast.visitor.MethodVisitor;
+import cn.fan.ast.visitor.PackageVisitor;
 import cn.fan.model.SourceSubPathEnum;
 import cn.fan.tool.LoadSourceCode;
 
@@ -52,11 +55,18 @@ public class PaserSourceCodeToAst {
      * @param methodName
      *            方法的名字
      */
-    public List<Integer> getLinesFromOneMethod(String methodName) {
-        List<Integer> results = new ArrayList<Integer>();
-        MethodVisitor methodVisitor = new MethodVisitor(methodName);
-        methodVisitor.visit(compilationUnit, results);
-        return results;
+    public List<String> getMethodNames() {
+        Set<String> set = new HashSet<String>();
+        MethodVisitor methodVisitor = new MethodVisitor();
+        methodVisitor.visit(compilationUnit, set);
+        return new ArrayList<String>(set);
+    }
+
+    public String getPackageName() {
+        String name = "";
+        PackageVisitor packageVisitor = new PackageVisitor();
+        packageVisitor.visit(compilationUnit, name);
+        return name;
     }
 
     public CompilationUnit getCompilationUnit() {

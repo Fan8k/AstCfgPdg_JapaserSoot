@@ -1,5 +1,8 @@
 package cn.fan.service;
 
+import java.util.UUID;
+
+import soot.G;
 import soot.PackManager;
 import soot.Transform;
 import soot.Transformer;
@@ -13,9 +16,9 @@ import soot.Transformer;
 public class PaserClassToCfg<T extends Transformer> {
 
     public void parseCfg(T transformer, String jarPath, String parseredClass) {
-        // Options.v().keep_line_number();
+        G.reset();
         // 加入自定义阶段
-        PackManager.v().getPack("jtp").add(new Transform("jtp.fan", transformer));
+        PackManager.v().getPack("jtp").add(new Transform("jtp.fan" + UUID.randomUUID(), transformer));
         // 运行参数设置
         execute(parseredClass, jarPath);
     }
