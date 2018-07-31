@@ -62,39 +62,41 @@ public class DotPrinterAst {
         // 原来Ast的节点 因为需要用到各个节点的行号信息，所以必须一起遍历
 
         String ndName = nextNodeName();
-        if (outputNodeType) {
-            // 只有第一次才能
-            if (lineToDotLabel.get(root.getBegin().get().line) == null) {
-                lineToDotLabel.put(root.getBegin().get().line, ndName);
+        if (!root.toString().equals("")) {
+            if (outputNodeType) {
+                // 只有第一次才能
+                if (lineToDotLabel.get(root.getBegin().get().line) == null) {
+                    lineToDotLabel.put(root.getBegin().get().line, ndName);
+                }
+                builder.append(System.lineSeparator() + ndName + " [label=\"" + node.getTypeName() + ")\"];");
             }
-            builder.append(System.lineSeparator() + ndName + " [label=\"" + node.getTypeName() + ")\"];");
-        }
-        else {
-            if (lineToDotLabel.get(root.getBegin().get().line) == null) {
-                lineToDotLabel.put(root.getBegin().get().line, ndName);
+            else {
+                if (lineToDotLabel.get(root.getBegin().get().line) == null) {
+                    lineToDotLabel.put(root.getBegin().get().line, ndName);
+                }
+                builder.append(System.lineSeparator() + ndName + " [label=\"" + node.getTypeName() + "\"];");
             }
-            builder.append(System.lineSeparator() + ndName + " [label=\"" + node.getTypeName() + "\"];");
-        }
 
-        if (parentNodeName != null)
-            builder.append(System.lineSeparator() + parentNodeName + " -> " + ndName + ";");
+            if (parentNodeName != null)
+                builder.append(System.lineSeparator() + parentNodeName + " -> " + ndName + ";");
 
-        for (String a : attributes) {
-            String attrName = nextNodeName();
-            builder.append(System.lineSeparator() + attrName + " [label=\"" + a + "'\"];");
-            builder.append(System.lineSeparator() + ndName + " -> " + attrName + ";");
-        }
+            for (String a : attributes) {
+                String attrName = nextNodeName();
+                builder.append(System.lineSeparator() + attrName + " [label=\"" + a + "'\"];");
+                builder.append(System.lineSeparator() + ndName + " -> " + attrName + ";");
+            }
 
-        for (int i = 0; i < subNodes.size(); i++) {
-            output(subNodes.get(i), ndName, subNodes.get(i).getName(), builder, subNodesPrimary.get(i));
-        }
+            for (int i = 0; i < subNodes.size(); i++) {
+                output(subNodes.get(i), ndName, subNodes.get(i).getName(), builder, subNodesPrimary.get(i));
+            }
 
-        for (int i = 0; i < subLists.size(); i++) {
-            String ndLstName = nextNodeName();
-            builder.append(System.lineSeparator() + ndLstName + " [label=\"" + subLists.get(i) + "\"];");
-            builder.append(System.lineSeparator() + ndName + " -> " + ndLstName + ";");
-            for (int j = 0; j < subListNodes.get(i).size(); j++) {
-                output(subListNodes.get(i).get(j), ndLstName, subLists_name.get(i), builder, subListNodesPrimary.get(i).get(j));
+            for (int i = 0; i < subLists.size(); i++) {
+                String ndLstName = nextNodeName();
+                builder.append(System.lineSeparator() + ndLstName + " [label=\"" + subLists.get(i) + "\"];");
+                builder.append(System.lineSeparator() + ndName + " -> " + ndLstName + ";");
+                for (int j = 0; j < subListNodes.get(i).size(); j++) {
+                    output(subListNodes.get(i).get(j), ndLstName, subLists_name.get(i), builder, subListNodesPrimary.get(i).get(j));
+                }
             }
         }
     }

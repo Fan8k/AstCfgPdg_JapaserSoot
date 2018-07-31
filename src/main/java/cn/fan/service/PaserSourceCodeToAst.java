@@ -2,6 +2,7 @@ package cn.fan.service;
 
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -47,6 +48,10 @@ public class PaserSourceCodeToAst {
             e.printStackTrace();
         }
         compilationUnit = new SourceRoot(path).parse("", filename);
+    }
+
+    public PaserSourceCodeToAst(String absPath, String filename) {
+        compilationUnit = new SourceRoot(Paths.get(absPath)).parse("", filename);
     }
 
     /**
