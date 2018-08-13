@@ -19,9 +19,10 @@ import cn.fan.service.PaserSourceCodeToAst;
 import cn.fan.tool.ExtractClassName;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.MethodDeclaration;
 
-public class Entrance {
-    private static Logger logger = Logger.getLogger(Entrance.class);
+public class DotEntrance {
+    private static Logger logger = Logger.getLogger(DotEntrance.class);
     private static List<String> allNeadList;
 
     public static void main(String[] args) {
@@ -30,9 +31,9 @@ public class Entrance {
         HashMap<String, String> paths = new HashMap<String, String>();
         // 该项目所依赖的jar
         List<String> jarsPath = new ArrayList<String>();
-        File projectFile = new File("D:\\JarAndSource\\clarity");
+        File projectFile = new File("D:\\JarAndSource\\spring-cloud-config-server");
         // 在项目下面创建一个AST_CFG_PDGInfo目录放dot文件
-        File aimPathFile = new File(projectFile.getAbsolutePath() + File.separator + "AST_CFG_PDGInfo");
+        File aimPathFile = new File(projectFile.getAbsolutePath() + File.separator + "AST_CFG_PDGdotInfo");
         aimPathFile.mkdir();
         extractClassName.findJavaFile(projectFile, paths, jarsPath);
         // 获取到了paths和jarsPath
@@ -40,9 +41,6 @@ public class Entrance {
             String className = pathToClassName.getKey();
             String name = className.substring(className.lastIndexOf(".") + 1);
             System.out.println(name);
-            if (name.equals("MDPFactory")) {
-                System.out.println("停下");
-            }
             PaserSourceCodeToAst paserSourceCodeToAst = new PaserSourceCodeToAst(pathToClassName.getValue(), name + ".java");
             CompilationUnit cu = paserSourceCodeToAst.getCompilationUnit();
             AstNode root = new AstNode();
@@ -57,10 +55,14 @@ public class Entrance {
 
             paserClassToCfg.parseCfg(methodTransformer, jarsPath, className);
 
+            // 更具java名字在建立一级目录
+            File methodDotDirectory = new File(aimPathFile.getAbsolutePath() + File.separator + name);
+            methodDotDirectory.mkdir();
+
             DotPrinterAst dotPrinterAst = new DotPrinterAst(true, true, methodTransformer.getMethodToCfgEdges(), methodTransformer.getMethodToallDataFlowEdges());
             String output = dotPrinterAst.output(root);
 
-            try (FileWriter fileWriter = new FileWriter(aimPathFile.getAbsolutePath() + File.separator + (name + UUID.randomUUID()) + ".dot");
+            try (FileWriter fileWriter = new FileWriter(methodDotDirectory.getAbsolutePath() + File.separator + (name + UUID.randomUUID()) + ".dot");
                     PrintWriter printWriter = new PrintWriter(fileWriter)) {
                 printWriter.print(output);
             }
@@ -69,6 +71,22 @@ public class Entrance {
                 e.printStackTrace();
             }
             System.out.println("dot文件生成完毕!");
+            // 生成当个method文件
+            DotMethodAst dotMethodAst = new DotMethodAst(true, true, methodTransformer.getMethodToCfgEdges(), methodTransformer.getMethodToallDataFlowEdges());
+            List<MethodDeclaration> methodDeclarations = cu.findAll(MethodDeclaration.class);
+            for (MethodDeclaration methodDeclaration : methodDeclarations) {
+                String output2 = dotMethodAst.output(methodDeclaration);
+                try (FileWriter fileWriter = new FileWriter(methodDotDirectory.getAbsolutePath() + File.separator + (methodDeclaration.getNameAsString() + UUID.randomUUID())
+                        + ".dot");
+                        PrintWriter printWriter = new PrintWriter(fileWriter)) {
+                    printWriter.print(output2);
+                }
+                catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            System.out.println("mmethod dot文件生成完毕!");
         }
+        System.out.println("dot文件全部生成完毕!");
     }
 }

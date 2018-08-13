@@ -13,7 +13,6 @@ public class MethodVisitor extends VoidVisitorAdapter<Set<String>> {
         super.visit(n, set);
         // 获取method的首行和结束行
         set.add(n.getNameAsString());
-
     }
 
 }
