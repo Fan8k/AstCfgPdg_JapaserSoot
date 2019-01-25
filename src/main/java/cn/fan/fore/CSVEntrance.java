@@ -19,7 +19,19 @@ import com.github.javaparser.ast.CompilationUnit;
 public class CSVEntrance {
 
     public static void main(String[] args) {
-        ExtractClassName extractClassName = new ExtractClassName();
+        List<String> canIn = new ArrayList<String>();
+        canIn.add("src");
+        canIn.add("lib");
+        List<String> notIn = new ArrayList<String>();
+        notIn.add("integrationtest");
+        notIn.add("examples");
+        notIn.add("contrib");
+        notIn.add("documentation");
+        notIn.add("models");
+        notIn.add("resources");
+        notIn.add("types");
+        notIn.add("testcases");
+        ExtractClassName extractClassName = new ExtractClassName(canIn, notIn);
         // 一个项目的所有java文件路径 已经入口package.className
         HashMap<String, String> paths = new HashMap<String, String>();
         // 该项目所依赖的jar

@@ -30,6 +30,21 @@ public class ExtractClassName {
     static {
         p = Pattern.compile("package\\s+((?:\\w+\\.)+(\\w*){1})");
     }
+    List<String> canIn = null;
+    List<String> notIn = null;
+
+    /**
+     * 
+     * @author LiRongFan
+     * @param canIn
+     *            需要进去找java文件的目录
+     * @param notIn
+     *            不需要进去找java文件的目录
+     */
+    public ExtractClassName(List<String> canIn, List<String> notIn) {
+        this.canIn = canIn;
+        this.notIn = notIn;
+    }
 
     /**
      * 
@@ -44,8 +59,11 @@ public class ExtractClassName {
         // 对于具有src目录的文件夹，我们只需要进入src
         File[] files = directory.listFiles((File pathName) -> {
             boolean flag = false;
-            if (pathName.getName().equals("src") || pathName.getName().equals("target")) {
-                flag = true;
+            for (String aim : canIn) {
+                if (pathName.getName().equals(aim)) {
+                    flag = true;
+                    break;
+                }
             }
             return flag;
         });
@@ -53,8 +71,19 @@ public class ExtractClassName {
         if (files.length == 0) {
             File[] listFiles = directory.listFiles();
             for (File file : listFiles) {
-                if (file.isDirectory() && !file.getName().equals("test")) {
-                    findJavaFile(file, pathsToClassName, jarsPath);
+                // testcases 测试用例的代码不进去
+                if (file.isDirectory()) {
+                    boolean flag = false;
+                    // 如果该文件不能进去
+                    for (String aim : notIn) {
+                        if (file.getName().equals(aim)) {
+                            flag = true;
+                            break;
+                        }
+                    }
+                    if (!flag) {
+                        findJavaFile(file, pathsToClassName, jarsPath);
+                    }
                 }
                 else if (file.getName().endsWith(".java")) {
                     // 只有java的文件需要处理
@@ -110,7 +139,7 @@ public class ExtractClassName {
     public void Test() {
         HashMap<String, String> paths = new HashMap<String, String>();
         List<String> jarsPath = new ArrayList<String>();
-        findJavaFile(new File("D:\\JarAndSource\\clarity"), paths, jarsPath);
+        findJavaFile(new File("G:\\li_rong_fan\\poi-4.0.0"), paths, jarsPath);
         for (Entry<String, String> s : paths.entrySet()) {
             System.out.println(s.getKey() + "\t" + s.getValue());
         }

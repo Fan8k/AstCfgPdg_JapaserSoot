@@ -56,7 +56,6 @@ public class DotMethodAst {
         StringBuilder output = new StringBuilder();
         this.lineToDotLabel = new HashMap<Integer, String>();
         output.append("digraph {");
-        NodeMetaModel metaModel = node.getMetaModel();
         startLine = node.getBegin().get().line;
         endLine = node.getEnd().get().line;
         output.append(System.lineSeparator() + "label=\"" + startLine + "----" + endLine + ",total" + (endLine - startLine) + "\"");
@@ -117,6 +116,7 @@ public class DotMethodAst {
             }
 
             for (PropertyMetaModel sl : subLists) {
+                @SuppressWarnings("unchecked")
                 NodeList<? extends Node> nl = (NodeList<? extends Node>) sl.getValue(node);
                 if (nl != null && nl.isNonEmpty()) {
                     String ndLstName = nextNodeName();

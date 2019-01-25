@@ -1,5 +1,6 @@
 package cn.fan.cfg.assistant;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -26,8 +27,11 @@ import cn.fan.model.UnitToDataSet;
 public class MethodTransformer extends BodyTransformer {
 
     private List<String> methodNames;
+
+    // 方法的类型 [[方法名字,方法的参数个数,行号,类型]],这个作用就是生成ast_cfg_pdg的dot文件名字能和callgraph对应上
+    private List<ArrayList<String>> method_ParaTypes;
     /**
-     * 所有的cfg边 {方法中：cfg边}
+     * 所有的cfg边 {方法中：cfg边} 有个问题就是方法名字不唯一，不能
      */
     public HashMap<String, Set<Edge>> methodToCfgEdges;
 
@@ -41,6 +45,7 @@ public class MethodTransformer extends BodyTransformer {
         this.methodNames = methodNames;
         methodToCfgEdges = new HashMap<String, Set<Edge>>();
         methodToallDataFlowEdges = new HashMap<String, Set<Edge>>();
+        method_ParaTypes = new ArrayList<ArrayList<String>>();
     }
 
     @Override
@@ -49,8 +54,30 @@ public class MethodTransformer extends BodyTransformer {
         for (String methodName : methodNames) {
             if (b.getMethod().getName().toString().equals(methodName)) {
                 BriefUnitGraph directGraph = new BriefUnitGraph(b);
-                methodToCfgEdges.put(methodName, getCfgEdges(directGraph));
-                methodToallDataFlowEdges.put(methodName, getDataFlowEdges(directGraph));
+                // 一个方法就算有重载，所有的相同方法 名的边都会加到一个边的集合中
+                if (methodToCfgEdges.get(methodName) == null) {
+                    methodToCfgEdges.put(methodName, getCfgEdges(directGraph));
+                }
+                else {
+                    methodToCfgEdges.get(methodName).addAll(getCfgEdges(directGraph));
+                }
+                if (methodToallDataFlowEdges.get(methodName) == null) {
+                    methodToallDataFlowEdges.put(methodName, getDataFlowEdges(directGraph));
+                }
+                else {
+                    methodToallDataFlowEdges.get(methodName).addAll(getDataFlowEdges(directGraph));
+                }
+                // 加入行号信息
+                String methodname = b.getMethod().getName();
+                String classname = b.getMethod().getDeclaringClass().getName().replaceAll("\\$", "\\.");
+                String fileName = classname + "." + methodname + b.getMethod().getParameterTypes().toString().replace('[', '(').replace(']', ')');
+                ArrayList<String> sigMethod = new ArrayList<String>();
+                sigMethod.add(methodName);
+                sigMethod.add(String.valueOf(b.getMethod().getParameterCount()));
+                sigMethod.add(String.valueOf(b.getMethod().getParameterTypes()));
+                sigMethod.add(String.valueOf(b.getMethod().getJavaSourceStartLineNumber()));
+                sigMethod.add(fileName);
+                method_ParaTypes.add(sigMethod);
             }
         }
     }
@@ -146,6 +173,10 @@ public class MethodTransformer extends BodyTransformer {
 
     public void setMethodNames(List<String> methodNames) {
         this.methodNames = methodNames;
+    }
+
+    public List<ArrayList<String>> getMethod_ParaTypes() {
+        return method_ParaTypes;
     }
 
     public HashMap<String, Set<Edge>> getMethodToCfgEdges() {
