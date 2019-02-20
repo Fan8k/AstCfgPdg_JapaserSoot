@@ -40,10 +40,10 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-    <groupId>javax.ws.rs</groupId>
-    <artifactId>javax.ws.rs-api</artifactId>
-    <version>2.1</version>
-</dependency>
-				
+			<groupId>javax.ws.rs</groupId>
+			<artifactId>javax.ws.rs-api</artifactId>
+			<version>2.1</version>
+		</dependency>
+
 	</dependencies>
 </project>

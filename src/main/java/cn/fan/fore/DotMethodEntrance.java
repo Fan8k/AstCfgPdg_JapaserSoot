@@ -21,7 +21,9 @@ import cn.fan.service.PaserSourceCodeToAst;
 import cn.fan.tool.ExtractClassName;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 
@@ -35,12 +37,14 @@ import com.github.javaparser.ast.body.Parameter;
  */
 public class DotMethodEntrance {
 
+    @SuppressWarnings("deprecation")
     public static void main(String[] args) throws IOException {
         Logger logger = Logger.getLogger(DotMethodEntrance.class);
 
         List<String> canIn = new ArrayList<String>();
         // canIn.add("src");
         // canIn.add("lib");
+        // canIn.add("test");
         List<String> notIn = new ArrayList<String>();
         notIn.add("AST_CFG_PDGdotInfo");
         // notIn.add("gradle");
@@ -58,7 +62,7 @@ public class DotMethodEntrance {
         HashMap<String, String> paths = new HashMap<String, String>();
         // 该项目所依赖的jar
         List<String> jarsPath = new ArrayList<String>();
-        File projectFile = new File("G:\\li_rong_fan\\jdk1.8\\jdk.src\\");
+        File projectFile = new File("C:\\Users\\fan\\Desktop\\AST+CFG+PDG\\jdk1.8\\jdk.src");
         // 在项目下面创建一个AST_CFG_PDGInfo目录放dot文件
         File aimPathFile = new File(projectFile.getAbsolutePath() + File.separator + "AST_CFG_PDGdotInfo");
         if (!aimPathFile.exists()) {
@@ -108,32 +112,77 @@ public class DotMethodEntrance {
 
             // 生成当个method文件
             DotMethodAst dotMethodAst = new DotMethodAst(true, true, methodTransformer.getMethodToCfgEdges(), methodTransformer.getMethodToallDataFlowEdges());
-            List<MethodDeclaration> methodDeclarations = cu.findAll(MethodDeclaration.class);
+
+            // 这里修改一下 不再是获取整个文件所有的方法因为有的方法是内部类里面
+            List<Node> childNodes = cu.getChildNodes();
             int i = 0;
-            for (MethodDeclaration methodDeclaration : methodDeclarations) {
-                // 每个method 作为一个node 传入其中t
-                String output2 = dotMethodAst.output(methodDeclaration);
-                // class.method(params)_UUID.dot
-                String methodFileName = getMethodFileName(methodDeclaration.getNameAsString(), methodDeclaration.getBegin().get().line, methodDeclaration.getParameters(),
-                        methodTransformer.getMethod_ParaTypes());
-                if (methodFileName == null) {
-                    StringBuilder sb = new StringBuilder("(");
-                    for (Parameter parameter : methodDeclaration.getParameters()) {
-                        sb.append(parameter.getTypeAsString().replace('<', '@').replace('>', '@').replace('?', 'T').trim());
-                        sb.append(",");
+            for (Node node : childNodes) {
+                if (node instanceof ClassOrInterfaceDeclaration) {
+                    // 最外面的类的方法体
+                    List<MethodDeclaration> mainClassMethods = ((ClassOrInterfaceDeclaration) node).getMethods();
+                    // 这个是主类的方法处理
+                    for (MethodDeclaration mainClassMethod : mainClassMethods) {
+                        String output2 = dotMethodAst.output(mainClassMethod);
+                        String methodFileName = getMethodFileName(mainClassMethod.getNameAsString(), mainClassMethod.getBegin().get().line, mainClassMethod.getParameters(),
+                                methodTransformer.getMethod_ParaTypes());
+                        if (methodFileName == null) {
+                            StringBuilder sb = new StringBuilder("(");
+                            for (Parameter parameter : mainClassMethod.getParameters()) {
+                                sb.append(parameter.getTypeAsString().replace('<', '@').replace('>', '@').replace('?', 'T').trim());
+                                sb.append(",");
+                            }
+                            if (sb.length() == 1) {
+                                sb.append(")");
+                            }
+                            else {
+                                sb.replace(sb.length() - 1, sb.length(), ")");
+                            }
+                            methodFileName = (className + "." + mainClassMethod.getNameAsString() + sb.toString());
+                        }
+                        write(methodDotDirectory.getAbsolutePath() + File.separator, methodFileName, String.valueOf(i));
+                        try (FileWriter fileWriter = new FileWriter(methodDotDirectory.getAbsolutePath() + File.separator + (i++) + "_AST.dot");
+                                PrintWriter printWriter = new PrintWriter(fileWriter)) {
+                            printWriter.print(output2);
+                        }
+                        catch (IOException e) {
+                            throw e;
+                        }
                     }
-                    sb.replace(sb.length() - 1, sb.length(), ")");
-                    methodFileName = (className + "." + methodDeclaration.getNameAsString() + sb.toString());
-                }
-                write(methodDotDirectory.getAbsolutePath() + File.separator, methodFileName, String.valueOf(i));
-                try (FileWriter fileWriter = new FileWriter(methodDotDirectory.getAbsolutePath() + File.separator + (i++) + "_AST.dot");
-                        PrintWriter printWriter = new PrintWriter(fileWriter)) {
-                    printWriter.print(output2);
-                }
-                catch (IOException e) {
-                    throw e;
+                    // 现在来处理内部类方法
+                    List<ClassOrInterfaceDeclaration> nodesByType = node.getNodesByType(ClassOrInterfaceDeclaration.class);
+                    for (ClassOrInterfaceDeclaration nodeInClass : nodesByType) {
+                        List<MethodDeclaration> inteClassMethods = nodeInClass.getMethods();
+                        for (MethodDeclaration inteClassMethod : inteClassMethods) {
+                            String output2 = dotMethodAst.output(inteClassMethod);
+                            String methodFileName = getMethodFileName(inteClassMethod.getNameAsString(), inteClassMethod.getBegin().get().line, inteClassMethod.getParameters(),
+                                    methodTransformer.getMethod_ParaTypes());
+                            if (methodFileName == null) {
+                                StringBuilder sb = new StringBuilder("(");
+                                for (Parameter parameter : inteClassMethod.getParameters()) {
+                                    sb.append(parameter.getTypeAsString().replace('<', '@').replace('>', '@').replace('?', 'T').trim());
+                                    sb.append(",");
+                                }
+                                if (sb.length() == 1) {
+                                    sb.append(")");
+                                }
+                                else {
+                                    sb.replace(sb.length() - 1, sb.length(), ")");
+                                }
+                                methodFileName = (className + "$" + nodeInClass.getNameAsString() + "." + inteClassMethod.getNameAsString() + sb.toString());
+                            }
+                            write(methodDotDirectory.getAbsolutePath() + File.separator, methodFileName, String.valueOf(i));
+                            try (FileWriter fileWriter = new FileWriter(methodDotDirectory.getAbsolutePath() + File.separator + (i++) + "_AST.dot");
+                                    PrintWriter printWriter = new PrintWriter(fileWriter)) {
+                                printWriter.print(output2);
+                            }
+                            catch (IOException e) {
+                                throw e;
+                            }
+                        }
+                    }
                 }
             }
+
             System.out.println("mmethod dot文件生成完毕!");
 
             // 生成纯的cfg
