@@ -1,0 +1,8 @@
+AST 是从Java源代码开始分析，而Soot是从class开始分析，Java源代码中内部类等都会编译之后独立成为新的class文件，所以这个程序需要优化的地方是：
+1.soot 不在是从一个AST解析的Java文件为入口，而是独立的进行jar包拆解，提取一个class的各个方法的数据流和控制流信息
+2.AST上需要首先解析出所有的类的信息，然后根据类名去找到相应的soot解析出的class信息，这样AST树中才会把流加权
+3.AST还需引入Call graph 信息！
+
+
+由于以上问题，我们直接进行了AST替换，不从AST上开始，AST点类型居多，现有的Graph embedding算法无法拟合，项目调到BuildCodeGraph中！
+
