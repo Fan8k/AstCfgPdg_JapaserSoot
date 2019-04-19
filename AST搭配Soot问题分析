@@ -6,3 +6,5 @@ AST 是从Java源代码开始分析，而Soot是从class开始分析，Java源�
 
 由于以上问题，我们直接进行了AST替换，不从AST上开始，AST点类型居多，现有的Graph embedding算法无法拟合，项目调到BuildCodeGraph中！
 
+如果需要BuildCodeGraph项目 请联系我:1098897508@qq.com
+
